@@ -22,6 +22,7 @@ npm init -y
 Install required dependencies:
 ```
 npm install express cors
+npm install glob
 ```
 
 Copy dataset containing images to micrographs

@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Micrograph Dataset Viewer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    header {
+      background-color: #333;
+      color: white;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+    }
+    .dashboard {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .dataset-selector {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .dataset-chip {
+      padding: 8px 15px;
+      background-color: #e0e0e0;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      user-select: none;
+    }
+    .dataset-chip:hover {
+      background-color: #d0d0d0;
+    }
+    .dataset-chip.active {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .search-container {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #search-input {
+      flex-grow: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-width: 200px;
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.2s;
+    }
+    .btn-primary {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .btn-primary:hover {
+      background-color: #45a049;
+    }
+    .btn-secondary {
+      background-color: #f44336;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background-color: #d32f2f;
+    }
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid #4CAF50;
+      color: #4CAF50;
+    }
+    .btn-outline:hover {
+      background-color: rgba(76, 175, 80, 0.1);
+    }
+    .stats {
+      display: flex;
+      gap: 15px;
+      padding: 10px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .stat-item {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+    .stat-label {
+      color: #777;
+      font-size: 14px;
+    }
+    .images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      grid-gap: 20px;
+    }
+    .image-card {
+      background-color: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+    .image-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .image-container {
+      height: 200px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+    }
+    .image-container img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .dataset-label {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(0,0,0,0.6);
+      color: white;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+    .image-info {
+      padding: 15px;
+    }
+    .image-filename {
+      font-weight: bold;
+      margin-bottom: 10px;
+      word-break: break-all;
+    }
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    .tag {
+      background-color: #e0e0e0;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 12px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 10;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.8);
+    }
+    .modal-content {
+      display: flex;
+      flex-direction: column;
+      margin: 5% auto;
+      padding: 20px;
+      background-color: white;
+      width: 80%;
+      max-width: 800px;
+      border-radius: 8px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .modal-title {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    .close {
+      color: #aaa;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover {
+      color: #333;
+    }
+    .modal-body {
+      margin-bottom: 20px;
+    }
+    .modal-image-container {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .modal-image {
+      max-width: 100%;
+      max-height: 60vh;
+    }
+    .modal-metadata {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .metadata-item {
+      margin-bottom: 8px;
+    }
+    .metadata-label {
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    .tags-input {
+      padding: 10px;
+      font-size: 16px;
+      margin-bottom: 10px;
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .tags-input:focus {
+      outline: none;
+      border-color: #4CAF50;
+      box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 50px;
+      color: #777;
+    }
+    .loading {
+      text-align: center;
+      padding: 50px;
+    }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border-left-color: #4CAF50;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      background-color: #333;
+      color: #fff;
+      border-radius: 4px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .toast.show {
+      opacity: 1;
+    }
+    .filter-tag {
+      padding: 5px 10px;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 15px;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-right: 5px;
+    }
+    .filter-tag .remove {
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #active-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    @media (max-width: 768px) {
+      .dashboard {
+        flex-direction: column;
+      }
+      .search-container {
+        flex-direction: column;
+      }
+      .dataset-selector {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .dataset-chip {
+        text-align: center;
+      }
+      .stats {
+        flex-direction: column;
+      }
+      .modal-content {
+        width: 95%;
+        margin: 10% auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Micrograph Dataset Viewer</h1>
+    </div>
+  </header>
+  
+  <div class="container">
+    <div class="dashboard">
+      <div class="dataset-selector">
+        <span>Datasets:</span>
+        <div id="dataset-chips">
+          <span class="dataset-chip active" data-dataset="all">All Datasets</span>
+          <!-- Dataset chips will be loaded here -->
+        </div>
+      </div>
+      
+      <div class="search-container">
+        <input type="text" id="search-input" placeholder="Search by dataset name, image name, or tag...">
+        <button id="search-button" class="btn btn-primary">Search</button>
+        <button id="clear-search" class="btn btn-secondary">Clear</button>
+      </div>
+      
+      <div id="active-filters"></div>
+      
+      <div class="stats">
+        <div class="stat-item">
+          <div class="stat-value" id="total-datasets">0</div>
+          <div class="stat-label">Datasets</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="total-images">0</div>
+          <div class="stat-label">Images</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="unique-tags">0</div>
+          <div class="stat-label">Unique Tags</div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>Loading images...</p>
+    </div>
+    
+    <div id="images-container" class="images-grid">
+      <!-- Images will be loaded here -->
+    </div>
+  </div>
+  
+  <!-- Modal for viewing images and editing tags -->
+  <div id="image-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-filename"></h2>
+        <span class="close">&times;</span>
+      </div>
+      
+      <div class="modal-body">
+        <div class="modal-image-container">
+          <img id="modal-image" class="modal-image" src="" alt="">
+        </div>
+        
+        <div class="modal-metadata">
+          <div class="metadata-item">
+            <span class="metadata-label">Dataset:</span>
+            <span id="modal-dataset"></span>
+          </div>
+          <div class="metadata-item">
+            <span class="metadata-label">Filename:</span>
+            <span id="modal-full-filename"></span>
+          </div>
+        </div>
+        
+        <div>
+          <label for="tags-input">Tags (comma separated):</label>
+          <input type="text" id="tags-input" class="tags-input" placeholder="e.g. bacteria, cell, microscopy">
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button id="save-tags" class="btn btn-primary">Save Tags</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="toast" class="toast"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // DOM Elements
+      const imagesContainer = document.getElementById('images-container');
+      const loadingElement = document.getElementById('loading');
+      const datasetChipsContainer = document.getElementById('dataset-chips');
+      const modal = document.getElementById('image-modal');
+      const modalImage = document.getElementById('modal-image');
+      const modalFilename = document.getElementById('modal-filename');
+      const modalFullFilename = document.getElementById('modal-full-filename');
+      const modalDataset = document.getElementById('modal-dataset');
+      const tagsInput = document.getElementById('tags-input');
+      const saveTagsBtn = document.getElementById('save-tags');
+      const closeBtn = document.querySelector('.close');
+      const searchInput = document.getElementById('search-input');
+      const searchButton = document.getElementById('search-button');
+      const clearSearchBtn = document.getElementById('clear-search');
+      const toast = document.getElementById('toast');
+      const activeFiltersContainer = document.getElementById('active-filters');
+      
+      // Stats elements
+      const totalDatasetsEl = document.getElementById('total-datasets');
+      const totalImagesEl = document.getElementById('total-images');
+      const uniqueTagsEl = document.getElementById('unique-tags');
+      
+      // State variables
+      let currentImage = null;
+      let allDatasets = [];
+      let currentDataset = 'all';
+      let searchTerm = '';
+      let activeFilters = [];
+      
+      // Load datasets and images on page load
+      initialize();
+      
+      // Event listeners
+      closeBtn.addEventListener('click', closeModal);
+      saveTagsBtn.addEventListener('click', saveTags);
+      searchButton.addEventListener('click', performSearch);
+      clearSearchBtn.addEventListener('click', clearSearch);
+      
+      // Handle clicks outside the modal
+      window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+          closeModal();
+        }
+      });
+      
+      // Search on Enter key
+      searchInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+          performSearch();
+        }
+      });
+      
+      // Initialize the application
+      async function initialize() {
+        try {
+          // Load datasets first
+          await loadDatasets();
+          
+          // Then load all images
+          await loadImages(currentDataset);
+          
+          // Update stats
+          updateStats();
+        } catch (error) {
+          console.error('Initialization error:', error);
+          showToast('Failed to initialize the application');
+        }
+      }
+      
+      // Load all available datasets
+      async function loadDatasets() {
+        try {
+          showLoading();
+          const response = await fetch('/api/datasets');
+          const data = await response.json();
+          allDatasets = data.datasets || [];
+          
+          // Update total datasets stat
+          totalDatasetsEl.textContent = allDatasets.length;
+          
+          // Render dataset chips
+          renderDatasetChips();
+        } catch (error) {
+          console.error('Error loading datasets:', error);
+          showToast('Failed to load datasets');
+        }
+      }
+      
+      // Render dataset selector chips
+      function renderDatasetChips() {
+        // Clear existing chips except "All Datasets"
+        const allChip = datasetChipsContainer.querySelector('[data-dataset="all"]');
+        datasetChipsContainer.innerHTML = '';
+        datasetChipsContainer.appendChild(allChip);
+        
+        // Add chips for each dataset
+        allDatasets.forEach(dataset => {
+          const chip = document.createElement('span');
+          chip.className = 'dataset-chip';
+          chip.textContent = dataset;
+          chip.dataset.dataset = dataset;
+          
+          chip.addEventListener('click', () => {
+            selectDataset(dataset);
+          });
+          
+          datasetChipsContainer.appendChild(chip);
+        });
+        
+        // Add click event to "All Datasets" chip
+        allChip.addEventListener('click', () => {
+          selectDataset('all');
+        });
+      }
+      
+      // Select a dataset
+      async function selectDataset(dataset) {
+        // Update active chip
+        const chips = document.querySelectorAll('.dataset-chip');
+        chips.forEach(chip => {
+          chip.classList.remove('active');
+          if (chip.dataset.dataset === dataset) {
+            chip.classList.add('active');
+          }
+        });
+        
+        currentDataset = dataset;
+        
+        // Reset search
+        searchInput.value = '';
+        searchTerm = '';
+        activeFilters = [];
+        renderActiveFilters();
+        
+        // Load images for the selected dataset
+        await loadImages(dataset);
+      }
+      
+      // Load images from all datasets or a specific dataset
+      async function loadImages(dataset = 'all') {
+        try {
+          showLoading();
+          let url = '/api/images';
+          
+          if (dataset !== 'all') {
+            url += `?dataset=${encodeURIComponent(dataset)}`;
+          }
+          
+          const response = await fetch(url);
+          const images = await response.json();
+          
+          displayImages(images);
+          hideLoading();
+          
+          // Update stats
+          totalImagesEl.textContent = images.length;
+          updateUniqueTagsCount(images);
+        } catch (error) {
+          console.error('Error loading images:', error);
+          showToast('Failed to load images');
+          hideLoading();
+        }
+      }
+      
+      // Display images in the grid
+      function displayImages(images) {
+        if (images.length === 0) {
+          imagesContainer.innerHTML = '<div class="empty-state"><h2>No images found</h2><p>No micrographs match your criteria.</p></div>';
+          return;
+        }
+        
+        imagesContainer.innerHTML = '';
+        
+        images.forEach(image => {
+          const card = document.createElement('div');
+          card.className = 'image-card';
+          
+          const imageContainer = document.createElement('div');
+          imageContainer.className = 'image-container';
+          imageContainer.addEventListener('click', () => openModal(image));
+          
+          const img = document.createElement('img');
+          img.src = `/api/images/${image.dataset}/${image.filename}`;
+          img.alt = image.filename;
+          img.loading = 'lazy';
+          
+          // Add error handling for images
+          img.onerror = function() {
+            console.error(`Failed to load image: ${image.filename}`);
+            this.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150" viewBox="0 0 200 150"><rect fill="%23f8f9fa" width="200" height="150"/><text fill="%23dee2e6" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%" y="50%" text-anchor="middle">Image Error</text></svg>';
+          };
+          
+          // Add dataset label
+          const datasetLabel = document.createElement('div');
+          datasetLabel.className = 'dataset-label';
+          datasetLabel.textContent = image.dataset;
+          
+          const info = document.createElement('div');
+          info.className = 'image-info';
+          
+          const filename = document.createElement('div');
+          filename.className = 'image-filename';
+          filename.textContent = image.filename;
+          
+          const tagsContainer = document.createElement('div');
+          tagsContainer.className = 'tags-container';
+          
+          if (image.tags && image.tags.length > 0) {
+            image.tags.forEach(tag => {
+              const tagEl = document.createElement('span');
+              tagEl.className = 'tag';
+              tagEl.textContent = tag;
+              tagEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                addFilter(tag, 'tag');
+              });
+              tagsContainer.appendChild(tagEl);
+            });
+          }
+          
+          imageContainer.appendChild(img);
+          imageContainer.appendChild(datasetLabel);
+          info.appendChild(filename);
+          info.appendChild(tagsContainer);
+          
+          card.appendChild(imageContainer);
+          card.appendChild(info);
+          imagesContainer.appendChild(card);
+        });
+      }
+      
+      // Open the modal with image details
+      function openModal(image) {
+        currentImage = image;
+        
+        modalFilename.textContent = image.filename;
+        modalFullFilename.textContent = image.filename;
+        modalDataset.textContent = image.dataset;
+        modalImage.src = `/api/images/${image.dataset}/${image.filename}`;
+        
+        // Set existing tags
+        tagsInput.value = (image.tags || []).join(', ');
+        
+        modal.style.display = 'block';
+      }
+      
+      // Close the modal
+      function closeModal() {
+        modal.style.display = 'none';
+        currentImage = null;
+      }
+      
+      // Save tags for the current image
+      async function saveTags() {
+        if (!currentImage) return;
+        
+        const tags = tagsInput.value
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag !== '');
+        
+        try {
+          const response = await fetch(`/api/tags/${currentImage.dataset}/${currentImage.filename}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tags })
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            showToast('Tags saved successfully');
+            
+            // Update the current image's tags in memory
+            currentImage.tags = tags;
+            
+            // Refresh the view
+            if (searchTerm || activeFilters.length > 0) {
+              performSearch();
+            } else if (currentDataset !== 'all') {
+              await loadImages(currentDataset);
+            } else {
+              await loadImages();
+            }
+            
+            closeModal();
+          }
+        } catch (error) {
+          console.error('Error saving tags:', error);
+          showToast('Failed to save tags');
+        }
+      }
+      
+      // Perform search based on input and active filters
+      async function performSearch() {
+        const term = searchInput.value.trim();
+        
+        if (!term && activeFilters.length === 0 && currentDataset === 'all') {
+          await loadImages();
+          return;
+        }
+        
+        try {
+          showLoading();
+          
+          // Add term as filter if not empty
+          if (term && !activeFilters.some(f => f.value === term)) {
+            addFilter(term, 'search');
+          }
+          
+          // Construct search URL
+          let url = '/api/search?';
+          const params = [];
+          
+          // Add search term if there are any active filters
+          if (activeFilters.length > 0) {
+            const searchTerms = activeFilters
+              .filter(f => f.type === 'search' || f.type === 'tag')
+              .map(f => f.value);
+            
+            if (searchTerms.length > 0) {
+              params.push(`term=${encodeURIComponent(searchTerms.join(' '))}`);
+            }
+          }
+          
+          // Add dataset filter if not 'all'
+          if (currentDataset !== 'all') {
+            params.push(`dataset=${encodeURIComponent(currentDataset)}`);
+          }
+          
+          url += params.join('&');
+          
+          const response = await fetch(url);
+          const results = await response.json();
+          
+          displayImages(results);
+          
+          // Update stats for search results
+          totalImagesEl.textContent = results.length;
+          updateUniqueTagsCount(results);
+          
+          hideLoading();
+        } catch (error) {
+          console.error('Error searching:', error);
+          showToast('Search failed');
+          hideLoading();
+        }
+      }
+      
+      // Add a filter to the active filters
+      function addFilter(value, type) {
+        // Don't add duplicates
+        if (activeFilters.some(f => f.value === value && f.type === type)) {
+          return;
+        }
+        
+        activeFilters.push({ value, type });
+        renderActiveFilters();
+        
+        // Clear search input
+        searchInput.value = '';
+        
+        // Perform search with new filter
+        performSearch();
+      }
+      
+      // Remove a filter
+      function removeFilter(index) {
+        activeFilters.splice(index, 1);
+        renderActiveFilters();
+        performSearch();
+      }
+      
+      // Render active filters
+      function renderActiveFilters() {
+        activeFiltersContainer.innerHTML = '';
+        
+        if (activeFilters.length === 0) {
+          return;
+        }
+        
+        const label = document.createElement('span');
+        label.textContent = 'Active filters: ';
+        activeFiltersContainer.appendChild(label);
+        
+        activeFilters.forEach((filter, index) => {
+          const filterTag = document.createElement('span');
+          filterTag.className = 'filter-tag';
+          filterTag.textContent = filter.value;
+          
+          const removeBtn = document.createElement('span');
+          removeBtn.className = 'remove';
+          removeBtn.textContent = '×';
+          removeBtn.addEventListener('click', () => removeFilter(index));
+          
+          filterTag.appendChild(removeBtn);
+          activeFiltersContainer.appendChild(filterTag);
+        });
+      }
+      
+      // Clear search and filters
+      function clearSearch() {
+        searchInput.value = '';
+        searchTerm = '';
+        activeFilters = [];
+        renderActiveFilters();
+        
+        if (currentDataset !== 'all') {
+          loadImages(currentDataset);
+        } else {
+          loadImages();
+        }
+      }
+      
+      // Count unique tags across all images
+      function updateUniqueTagsCount(images) {
+        const uniqueTags = new Set();
+        
+        images.forEach(image => {
+          if (image.tags && Array.isArray(image.tags)) {
+            image.tags.forEach(tag => uniqueTags.add(tag));
+          }
+        });
+        
+        uniqueTagsEl.textContent = uniqueTags.size;
+      }
+      
+      // Update all stats
+      async function updateStats() {
+        // Datasets count is updated when loading datasets
+        
+        // Get total image count across all datasets
+        try {
+          const response = await fetch('/api/images');
+          const images = await response.json();
+          
+          totalImagesEl.textContent = images.length;
+          updateUniqueTagsCount(images);
+        } catch (error) {
+          console.error('Error updating stats:', error);
+        }
+      }
+      
+      // Show loading state
+      function showLoading() {
+        loadingElement.style.display = 'block';
+        imagesContainer.style.display = 'none';
+      }
+      
+      // Hide loading state
+      function hideLoading() {
+        loadingElement.style.display = 'none';
+        imagesContainer.style.display = 'grid';
+      }
+      
+      // Show toast message
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 3000);
+      }
+    });
+  </script>
+</body>
+</html>

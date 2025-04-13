@@ -21,8 +21,7 @@ npm init -y
 
 Install required dependencies:
 ```
-npm install express cors
-npm install glob
+npm install express cors glob multer
 ```
 
 Copy dataset containing images to micrographs

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bulk Tag Datasets | CryoTomoSnap</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    header {
+      background-color: #333;
+      color: white;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 15px;
+      color: #4CAF50;
+      text-decoration: none;
+    }
+    .tagging-form {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .btn-primary {
+      background-color: #4CAF50;
+      color: white;
+    }
+    #status-message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #dff0d8;
+      color: #3c763d;
+    }
+    .error {
+      background-color: #f2dede;
+      color: #a94442;
+    }
+    .dataset-preview {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Bulk Tag Datasets | CryoTomoSnap</h1>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="tagging-form">
+      <div class="form-group">
+        <label for="dataset-pattern">Dataset Pattern:</label>
+        <input type="text" id="dataset-pattern" placeholder="e.g., CHEM*, *2023, LAB*_TEST">
+        <small>Use * as wildcard to match multiple datasets</small>
+      </div>
+
+      <div class="form-group">
+        <label for="tags-input">Tags to Add:</label>
+        <input type="text" id="tags-input" placeholder="e.g., biology, nucleus, experiment">
+        <small>Comma-separated list of tags</small>
+      </div>
+
+      <button id="preview-btn" class="btn btn-outline">Preview Datasets</button>
+      <button id="apply-tags-btn" class="btn btn-primary">Apply Tags</button>
+
+      <div id="status-message" style="display: none;"></div>
+
+      <div class="dataset-preview" id="dataset-preview" style="display: none;">
+        <h3>Datasets to be tagged:</h3>
+        <ul id="dataset-list"></ul>
+        <p>Total images affected: <span id="image-count">0</span></p>
+      </div>
+    </div>
+
+    <a href="index.html" class="back-link">
+      <i class="fas fa-arrow-left"></i> Back to Dataset Viewer
+    </a>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const datasetPatternInput = document.getElementById('dataset-pattern');
+      const tagsInput = document.getElementById('tags-input');
+      const previewBtn = document.getElementById('preview-btn');
+      const applyBtn = document.getElementById('apply-tags-btn');
+      const statusMessage = document.getElementById('status-message');
+      const datasetPreview = document.getElementById('dataset-preview');
+      const datasetList = document.getElementById('dataset-list');
+      const imageCount = document.getElementById('image-count');
+
+      let matchedDatasets = [];
+      let totalImages = 0;
+
+      // Preview datasets matching pattern
+      previewBtn.addEventListener('click', async function() {
+        const pattern = datasetPatternInput.value.trim();
+        
+        if (!pattern) {
+          showStatus('Please enter a dataset pattern', 'error');
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/datasets/match?pattern=${encodeURIComponent(pattern)}`);
+          const data = await response.json();
+          
+          if (data.success) {
+            matchedDatasets = data.datasets;
+            totalImages = data.totalImages;
+            
+            datasetList.innerHTML = '';
+            matchedDatasets.forEach(dataset => {
+              const li = document.createElement('li');
+              li.textContent = dataset;
+              datasetList.appendChild(li);
+            });
+            
+            imageCount.textContent = totalImages;
+            datasetPreview.style.display = 'block';
+            showStatus(`Found ${matchedDatasets.length} datasets with ${totalImages} total images`, 'success');
+          } else {
+            showStatus(data.error || 'No datasets matched the pattern', 'error');
+            datasetPreview.style.display = 'none';
+          }
+        } catch (error) {
+          showStatus('Error fetching datasets: ' + error.message, 'error');
+          datasetPreview.style.display = 'none';
+        }
+      });
+
+      // Apply tags to matched datasets
+      applyBtn.addEventListener('click', async function() {
+        const tags = tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+        
+        if (matchedDatasets.length === 0) {
+          showStatus('No datasets selected. Please preview first.', 'error');
+          return;
+        }
+        
+        if (tags.length === 0) {
+          showStatus('Please enter at least one tag', 'error');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/bulk-tags', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              datasets: matchedDatasets,
+              tags: tags
+            })
+          });
+
+          const result = await response.json();
+          
+          if (response.ok) {
+            showStatus(
+              `Successfully applied tags to ${result.updatedImages} images across ${result.updatedDatasets.length} datasets`,
+              'success'
+            );
+          } else {
+            showStatus('Error: ' + (result.error || 'Failed to apply tags'), 'error');
+          }
+        } catch (error) {
+          showStatus('Network error: ' + error.message, 'error');
+        }
+      });
+
+      function showStatus(message, type) {
+        statusMessage.textContent = message;
+        statusMessage.className = type;
+        statusMessage.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

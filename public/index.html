@@ -26,6 +26,9 @@
     h1 {
       margin: 0;
     }
+    .bulk-tag-actions {
+      margin: 10px 0;
+    }
     .dashboard {
       display: flex;
       flex-direction: column;
@@ -366,7 +369,11 @@
           <!-- Dataset chips will be loaded here -->
         </div>
       </div>
-      
+      <div class="bulk-tag-actions">
+        <a href="bulk-tag.html" class="btn btn-outline">
+        <i class="fas fa-tags"></i> Bulk Tag Datasets
+        </a>
+      </div>
       <div class="search-container">
         <input type="text" id="search-input" placeholder="Search by dataset name, image name, or tag...">
         <button id="search-button" class="btn btn-primary">Search</button>

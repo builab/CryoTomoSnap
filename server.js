@@ -195,6 +195,90 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
+// Match datasets using wildcard
+app.get('/api/datasets/match', async (req, res) => {
+  try {
+    const pattern = req.query.pattern;
+    const datasets = (await fs.readdir(micrographsPath, { withFileTypes: true }))
+      .filter(item => item.isDirectory())
+      .map(dir => dir.name);
+
+    // Convert wildcard pattern to regex
+    const regexPattern = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+    const matchedDatasets = datasets.filter(dataset => regexPattern.test(dataset));
+
+    if (matchedDatasets.length === 0) {
+      return res.json({ success: false, error: "No datasets match the pattern" });
+    }
+
+    // Count total images in matched datasets
+    let totalImages = 0;
+    for (const dataset of matchedDatasets) {
+      const files = await fs.readdir(path.join(micrographsPath, dataset));
+      totalImages += files.filter(file => 
+        ['.jpg','.jpeg','.png'].includes(path.extname(file).toLowerCase())
+      ).length;
+    }
+
+    res.json({
+      success: true,
+      datasets: matchedDatasets,
+      totalImages: totalImages
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Updated bulk tags endpoint
+app.post('/api/bulk-tags', async (req, res) => {
+  try {
+    const { datasets, tags } = req.body;
+    let updatedImages = 0;
+    const updatedDatasets = [];
+
+    for (const dataset of datasets) {
+      const tagsFile = path.join(micrographsPath, dataset, 'imageTags.json');
+      let currentTags = {};
+
+      try {
+        currentTags = JSON.parse(await fs.readFile(tagsFile, 'utf8'));
+      } catch {} // File doesn't exist yet
+
+      const images = (await fs.readdir(path.join(micrographsPath, dataset)))
+        .filter(file => ['.jpg','.jpeg','.png'].includes(path.extname(file).toLowerCase()));
+
+      let datasetUpdated = false;
+      for (const image of images) {
+        if (!currentTags[image]) currentTags[image] = [];
+        
+        tags.forEach(tag => {
+          if (!currentTags[image].includes(tag)) {
+            currentTags[image].push(tag);
+            updatedImages++;
+            datasetUpdated = true;
+          }
+        });
+      }
+
+      if (datasetUpdated) {
+        await fs.writeFile(tagsFile, JSON.stringify(currentTags, null, 2));
+        updatedDatasets.push(dataset);
+      }
+    }
+
+    res.json({
+      success: true,
+      updatedImages,
+      updatedDatasets
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Start server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);

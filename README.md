@@ -1,3 +1,5 @@
+CryoTomoSnap
+
 1. Installation Steps
 Create a project directory:
 

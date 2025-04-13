@@ -279,6 +279,100 @@ app.post('/api/bulk-tags', async (req, res) => {
   }
 });
 
+// Import dataset endpoint
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
+const fsSync = require('fs'); // For synchronous operations
+
+app.post('/api/import-dataset', upload.any(), async (req, res) => {
+  try {
+    console.log('Import dataset request received');
+    const { datasetName, suffixToRemove } = req.body;
+    const files = req.files || [];
+
+    console.log(`Received request: dataset=${datasetName}, files=${files.length}`);
+
+    if (!datasetName || files.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Missing required parameters' 
+      });
+    }
+
+    // Create dataset directory
+    const datasetPath = path.join(micrographsPath, datasetName);
+    try {
+      await fs.mkdir(datasetPath, { recursive: true });
+    } catch (err) {
+      console.error('Error creating directory:', err);
+      return res.status(500).json({ 
+        success: false,
+        error: `Failed to create dataset directory: ${err.message}` 
+      });
+    }
+
+    let importedFiles = 0;
+    let failedFiles = 0;
+
+    // Process each file
+    for (const file of files) {
+      try {
+        // Get the original filename
+        let originalFilename = path.basename(file.originalname);
+        
+        // Remove suffix if specified
+        let newFilename = originalFilename;
+        if (suffixToRemove && originalFilename.includes(suffixToRemove)) {
+          newFilename = originalFilename.replace(suffixToRemove, '');
+        }
+
+        // Construct full destination path
+        const destination = path.join(datasetPath, newFilename);
+        
+        // Copy the file using streams (more reliable across filesystems)
+        const readStream = fsSync.createReadStream(file.path);
+        const writeStream = fsSync.createWriteStream(destination);
+        
+        await new Promise((resolve, reject) => {
+          readStream.pipe(writeStream);
+          writeStream.on('finish', resolve);
+          writeStream.on('error', reject);
+        });
+        
+        // Clean up the temp file
+        try {
+          await fs.unlink(file.path);
+        } catch (cleanupErr) {
+          console.warn('Failed to clean up temp file:', cleanupErr);
+          // Continue even if cleanup fails
+        }
+        
+        importedFiles++;
+        console.log(`Imported: ${originalFilename} → ${newFilename}`);
+      } catch (fileError) {
+        failedFiles++;
+        console.error(`Error processing file ${file.originalname}:`, fileError);
+      }
+    }
+
+    console.log(`Import complete: ${importedFiles} succeeded, ${failedFiles} failed`);
+    res.json({
+      success: true,
+      importedFiles,
+      failedFiles,
+      datasetName
+    });
+
+  } catch (error) {
+    console.error('Error importing dataset:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
+
 // Start server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);

@@ -350,6 +350,12 @@
       font-size: 0.9em; /* Optional: Slightly smaller text */
       opacity: 0.8; /* Optional: Subtle transparency */
     }
+    .bulk-tag-actions {
+      margin: 10px 0;
+      display: flex;
+      gap: 10px; /* This adds space between the buttons */
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
@@ -369,16 +375,19 @@
           <!-- Dataset chips will be loaded here -->
         </div>
       </div>
-      <div class="bulk-tag-actions">
-        <a href="bulk-tag.html" class="btn btn-outline">
-        <i class="fas fa-tags"></i> Bulk Tag Datasets
-        </a>
-         <a href="import.html" class="btn btn-outline">
-         <i class="fas fa-file-import"></i> Import Dataset
-         </a>
-      </div>
+    <div class="bulk-tag-actions">
+      <a href="import-dataset.html" class="btn btn-outline">
+      <i class="fas fa-file-import"></i> Import Dataset
+      </a>   
+      <a href="import-tags.html" class="btn btn-outline">
+      <i class="fas fa-file-csv"></i> Import Tags
+      </a>
+      <a href="bulk-tag.html" class="btn btn-outline">
+      <i class="fas fa-tags"></i> Bulk Tag Datasets
+      </a>
+   </div>
       <div class="search-container">
-        <input type="text" id="search-input" placeholder="Search by dataset name, image name, or tag...">
+        <input type="text" id="search-input" placeholder="Search by dataset name, tomogram name, or tag...">
         <button id="search-button" class="btn btn-primary">Search</button>
         <button id="clear-search" class="btn btn-secondary">Clear</button>
       </div>
@@ -392,7 +401,7 @@
         </div>
         <div class="stat-item">
           <div class="stat-value" id="total-images">0</div>
-          <div class="stat-label">Images</div>
+          <div class="stat-label">Tomograms</div>
         </div>
         <div class="stat-item">
           <div class="stat-value" id="unique-tags">0</div>

@@ -372,6 +372,60 @@ app.post('/api/import-dataset', upload.any(), async (req, res) => {
   }
 });
 
+// Import tags from CSV endpoint
+app.post('/api/import-tags', async (req, res) => {
+  try {
+    const { dataset, tags } = req.body;
+    const datasetPath = path.join(micrographsPath, dataset);
+    
+    // Verify dataset exists
+    try {
+      await fs.access(datasetPath);
+    } catch {
+      return res.status(404).json({ error: 'Dataset not found' });
+    }
+
+    const tagsFile = path.join(datasetPath, 'imageTags.json');
+    let existingTags = {};
+    
+    try {
+      existingTags = JSON.parse(await fs.readFile(tagsFile, 'utf8'));
+    } catch {} // File doesn't exist yet
+
+    let updatedImages = 0;
+    let unmatchedEntries = [];
+
+    for (const { image, tags: newTags } of tags) {
+      // Verify image exists in dataset
+      try {
+        await fs.access(path.join(datasetPath, image));
+        
+        if (!existingTags[image]) existingTags[image] = [];
+        
+        newTags.forEach(tag => {
+          if (!existingTags[image].includes(tag)) {
+            existingTags[image].push(tag);
+            updatedImages++;
+          }
+        });
+      } catch {
+        unmatchedEntries.push(image);
+      }
+    }
+
+    await fs.writeFile(tagsFile, JSON.stringify(existingTags, null, 2));
+    
+    res.json({
+      success: true,
+      updatedImages,
+      unmatchedEntries,
+      totalEntries: tags.length
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Start server
 app.listen(port, () => {

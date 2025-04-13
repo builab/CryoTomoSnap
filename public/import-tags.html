@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Import Tags | CryoTomoSnap</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+	<style>		body {
+		  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		  margin: 0;
+		  padding: 0;
+		  background-color: #f5f5f5;
+		  color: #333;
+		}
+		.container {
+		  max-width: 800px;
+		  margin: 0 auto;
+		  padding: 20px;
+		}
+		header {
+		  background-color: #333;
+		  color: white;
+		  padding: 20px;
+		  margin-bottom: 20px;
+		}
+		h1 {
+		  margin: 0;
+		}
+		.back-link {
+		  display: inline-block;
+		  margin-top: 15px;
+		  color: #4CAF50;
+		  text-decoration: none;
+		}
+		.import-form {
+		  background: white;
+		  padding: 20px;
+		  border-radius: 8px;
+		  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		}
+		.form-group {
+		  margin-bottom: 15px;
+		}
+		label {
+		  display: block;
+		  margin-bottom: 5px;
+		  font-weight: bold;
+		}
+		select, input[type="file"] {
+		  width: 100%;
+		  padding: 10px;
+		  border: 1px solid #ddd;
+		  border-radius: 4px;
+		  box-sizing: border-box;
+		}
+		.btn {
+		  padding: 10px 20px;
+		  border: none;
+		  border-radius: 4px;
+		  cursor: pointer;
+		  font-size: 16px;
+		}
+		.btn-primary {
+		  background-color: #4CAF50;
+		  color: white;
+		}
+		.btn:disabled {
+		    background-color: #e0e0e0 !important;
+		    color: #a0a0a0 !important;
+		    cursor: not-allowed;
+		  }
+		#status-message {
+		  margin-top: 15px;
+		  padding: 10px;
+		  border-radius: 4px;
+		}
+		.success {
+		  background-color: #dff0d8;
+		  color: #3c763d;
+		}
+		.error {
+		  background-color: #f2dede;
+		  color: #a94442;
+		}
+		.preview-table {
+		  width: 100%;
+		  border-collapse: collapse;
+		  margin-top: 20px;
+		}
+		.preview-table th, .preview-table td {
+		  border: 1px solid #ddd;
+		  padding: 8px;
+		  text-align: left;
+		}
+		.preview-table th {
+		  background-color: #f2f2f2;
+		}
+	</style>
+</head>
+<body>
+<header>
+	<div class="container">
+		<h1>
+			Import Tags from CSV | CryoTomoSnap 
+		</h1>
+	</div>
+</header>
+<div class="container">
+	<div class="import-form">
+		<div class="form-group">
+			<label for="dataset-select">Dataset:</label> 
+			<select id="dataset-select">
+				<option value="">Loading datasets...</option>
+			</select>
+		</div>
+		<div class="form-group">
+			<label for="csv-file">CSV File:</label> 
+			<input type="file" id="csv-file" accept=".csv">
+			<small>Format: image_filename,"tag1, tag2, tag3" (one per line)</small> 
+		</div>
+		<button id="preview-btn" class="btn btn-primary">Preview</button> <button id="import-btn" class="btn btn-primary" disabled>Import Tags</button> 
+		<div id="status-message" style="display: none;">
+		</div>
+		<table class="preview-table" id="preview-table" style="display: none;">
+			<thead>
+				<tr>
+					<th>Image</th>
+					<th>Tags to Add</th>
+				</tr>
+			</thead>
+			<tbody id="preview-content">
+			</tbody>
+		</table>
+	</div>
+	<a href="index.html" class="back-link"> <i class="fas fa-arrow-left"></i> Back to Dataset Viewer </a> 
+</div>
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+	  const datasetSelect = document.getElementById('dataset-select');
+	  const csvFileInput = document.getElementById('csv-file');
+	  const previewBtn = document.getElementById('preview-btn');
+	  const importBtn = document.getElementById('import-btn');
+	  const statusMessage = document.getElementById('status-message');
+	  const previewTable = document.getElementById('preview-table');
+	  const previewContent = document.getElementById('preview-content');
+	
+	  let currentDataset = '';
+	  let tagData = [];
+	
+	  // Load datasets
+	  async function loadDatasets() {
+	    try {
+	      const response = await fetch('/api/datasets');
+	      const data = await response.json();
+	      
+	      datasetSelect.innerHTML = '<option value="">Select a dataset</option>';
+	      data.datasets.forEach(dataset => {
+	        const option = document.createElement('option');
+	        option.value = dataset;
+	        option.textContent = dataset;
+	        datasetSelect.appendChild(option);
+	      });
+	    } catch (error) {
+	      showStatus('Failed to load datasets: ' + error.message, 'error');
+	    }
+	  }
+	
+	  // Update currentDataset when selection changes
+	// Reset import button when dataset changes
+	  datasetSelect.addEventListener('change', function() {
+	    currentDataset = this.value;
+	    importBtn.disabled = true;
+	  });
+	
+	  // Reset import button when file changes
+	  csvFileInput.addEventListener('change', function() {
+	    importBtn.disabled = true;
+	  });
+	
+	  // Preview CSV data
+	  previewBtn.addEventListener('click', async function() {
+	    const file = csvFileInput.files[0];
+	    if (!file || !datasetSelect.value) {
+	      showStatus('Please select both dataset and CSV file', 'error');
+	          importBtn.disabled = true; // Ensure import stays disabled
+	
+	      return;
+	    }
+	
+	    try {
+	      // First get all images in the selected dataset
+	      const response = await fetch(`/api/images?dataset=${encodeURIComponent(datasetSelect.value)}`);
+	      const images = await response.json();
+	      const imageNames = images.map(img => img.filename);
+	      
+	      // Then parse CSV with knowledge of existing images
+	      const reader = new FileReader();
+	      reader.onload = function(e) {
+	        try {
+	          tagData = parseCSV(e.target.result, imageNames);
+	          
+	          // Display preview
+	          previewContent.innerHTML = '';
+	          tagData.forEach(item => {
+	            const row = document.createElement('tr');
+	            
+	            const imageCell = document.createElement('td');
+	            imageCell.textContent = item.image;
+	            row.appendChild(imageCell);
+	            
+	            const tagsCell = document.createElement('td');
+	            tagsCell.textContent = item.tags.join(', ');
+	            row.appendChild(tagsCell);
+	            
+	            previewContent.appendChild(row);
+	          });
+	          
+	          previewTable.style.display = 'table';
+	          importBtn.disabled = tagData.length === 0; // Enable only if we have data
+	          showStatus(`Found ${tagData.length} tag entries to import`, 'success');
+	        } catch (error) {
+	          showStatus('Error parsing CSV: ' + error.message, 'error');
+	          importBtn.disabled = true;
+	
+	        }
+	      };
+	      reader.readAsText(file);
+	    } catch (error) {
+	      showStatus('Error: ' + error.message, 'error');
+	      importBtn.disabled = true;
+	
+	    }
+	        if (tagData.length > 0) {
+	      importBtn.disabled = false;
+	    } else {
+	      importBtn.disabled = true;
+	    }
+	  });
+	
+	  // Import tags
+	  importBtn.addEventListener('click', async function() {
+	    if (tagData.length === 0 || !currentDataset) {
+	      showStatus('No data to import', 'error');
+	      return;
+	    }
+	
+	    try {
+	      const response = await fetch('/api/import-tags', {
+	        method: 'POST',
+	        headers: {
+	          'Content-Type': 'application/json'
+	        },
+	        body: JSON.stringify({
+	          dataset: currentDataset,
+	          tags: tagData
+	        })
+	      });
+	
+	      const result = await response.json();
+	
+	      if (response.ok) {
+	        let message = `Successfully imported tags to ${result.updatedImages} images`;
+	        if (result.unmatchedEntries && result.unmatchedEntries.length > 0) {
+	          message += ` (${result.unmatchedEntries.length} unmatched entries)`;
+	          
+	          // Add unmatched entries to the preview table
+	          const unmatchedRow = document.createElement('tr');
+	          unmatchedRow.innerHTML = `
+	            <td colspan="2" style="color: #f44336; background-color: #f8f8f8;">
+	              <strong>Unmatched Files:</strong> ${result.unmatchedEntries.slice(0, 5).join(', ')}
+	              ${result.unmatchedEntries.length > 5 ? `+ ${result.unmatchedEntries.length - 5} more...` : ''}
+	            </td>
+	          `;
+	          previewContent.appendChild(unmatchedRow);
+	        }
+	        
+	        showStatus(message, 'success');
+	        importBtn.disabled = true;
+	      } else {
+	        showStatus('Error: ' + (result.error || 'Failed to import tags'), 'error');
+	      }
+	    } catch (error) {
+	      showStatus('Network error: ' + error.message, 'error');
+	    }
+	  });
+	
+	  // Helper function to parse CSV
+	  function parseCSV(csv, datasetImages) {
+	    const lines = csv.split('\n');
+	    const result = [];
+	    const unmatched = [];
+	    
+	    for (const line of lines) {
+	      if (!line.trim()) continue;
+	      
+	      const match = line.match(/^([^,]+),\s*"([^"]*)"/);
+	      if (!match) continue;
+	      
+	      const imagePattern = match[1].trim();
+	      const tags = match[2].split(',').map(tag => tag.trim()).filter(tag => tag);
+	      
+	      // Find matching images (exact or partial match)
+	      const matchedImages = datasetImages.filter(img => {
+	        // Exact match
+	        if (img === imagePattern) return true;
+	        // Match without extension
+	        if (img.startsWith(imagePattern) && 
+	            (img === imagePattern + '.png' || 
+	             img === imagePattern + '.jpg' || 
+	             img === imagePattern + '.jpeg')) {
+	          return true;
+	        }
+	        // Contains pattern
+	        return img.includes(imagePattern);
+	      });
+	      
+	      if (matchedImages.length > 0) {
+	        matchedImages.forEach(img => {
+	          result.push({ image: img, tags });
+	        });
+	      } else {
+	        unmatched.push(imagePattern);
+	      }
+	    }
+	    
+	    if (unmatched.length > 0) {
+	      showStatus(`Warning: ${unmatched.length} image patterns didn't match any files`, 'error');
+	    }
+	    
+	    return result;
+	  }
+	
+	  function showStatus(message, type) {
+	    statusMessage.textContent = message;
+	    statusMessage.className = type;
+	    statusMessage.style.display = message ? 'block' : 'none';
+	  }
+	
+	  // Initialize
+	  loadDatasets();
+	});
+</script>
+</body>
+</html>

@@ -1,38 +1,49 @@
-CryoTomoSnap
+# CryoTomoSnap
 
-1. Installation Steps
-Create a project directory:
+A quick viewer to browse through tomography data with a tagging system to search for data.
 
-git clone 
-cd micrograph-viewer
+**NOTE:** Only basic features for now.
+
+---
+
+## 1. Installation Steps
+
+```bash
+git clone https://github.com/builab/CryoTomoSnap.git
+cd CryoTomoSnap
+```
+
 
 Initialize a Node.js project:
+```
 npm init -y
+```
 
 Install required dependencies:
+```
 npm install express cors
+```
 
+Copy dataset containing images to micrographs
+```
+cp /path/to/your/png/files micrographs/
+```
 
-Create the server file:
-Create a file named server.js in your project directory
-Copy the contents from the "Compatible Node.js Server" code I provided
-Create a directory for the frontend:
-mkdir -p public
+## 2. Run the Server
 
-Create a directory for micrographs:
- mkdir micrographs
-
-2. Run the Server
 Start the server:
+```
 node server.js
+```
+
 You should see output like:
+```
 Server running on port 3000
-Serving micrographs from: /your/path/to/micrograph-viewer/micrographs
+```
 
-4. Add Your Micrographs
-Copy your PNG micrographs to the micrographs directory:
-cp /path/to/your/png/files/*.png micrographs/
+## 3. Access the Application
 
-5. Access the Application
 Open a web browser and navigate to:
+```
 http://localhost:3000
+```

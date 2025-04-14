@@ -6,6 +6,57 @@
   <title>CryoTomoSnap</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    /* Pagination styles */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 20px 0;
+      gap: 8px;
+    }
+    
+    .pagination-button {
+      padding: 8px 12px;
+      background-color: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .pagination-button:hover {
+      background-color: #e0e0e0;
+    }
+    
+    .pagination-button.active {
+      background-color: #4a6cf7;
+      color: white;
+      border-color: #4a6cf7;
+    }
+    
+    .pagination-button.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .page-info {
+      margin: 0 15px;
+      color: #666;
+    }
+    
+    /* Animation for lazy loaded images */
+    .image-card {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    
+    .image-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -67,6 +118,19 @@
     <div id="images-container" class="images-grid">
       <!-- Images will be loaded here -->
     </div>
+    
+    <!-- Pagination controls -->
+    <div class="pagination" id="pagination-controls">
+      <button class="pagination-button" id="prev-page">
+        <i class="fas fa-chevron-left"></i> Previous
+      </button>
+      <div class="page-info">
+        Page <span id="current-page">1</span> of <span id="total-pages">1</span>
+      </div>
+      <button class="pagination-button" id="next-page">
+        Next <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
   </div>
   
   <!-- Modal for viewing images and editing tags -->
@@ -127,6 +191,13 @@
       const toast = document.getElementById('toast');
       const activeFiltersContainer = document.getElementById('active-filters');
       
+      // Pagination elements
+      const prevPageBtn = document.getElementById('prev-page');
+      const nextPageBtn = document.getElementById('next-page');
+      const currentPageEl = document.getElementById('current-page');
+      const totalPagesEl = document.getElementById('total-pages');
+      const paginationControls = document.getElementById('pagination-controls');
+      
       // Stats elements
       const totalDatasetsEl = document.getElementById('total-datasets');
       const totalImagesEl = document.getElementById('total-images');
@@ -138,6 +209,13 @@
       let currentDataset = 'all';
       let searchTerm = '';
       let activeFilters = [];
+      let allImages = []; // Store all images for pagination
+      let totalImages = 0; // Store the total number of images
+      
+      // Pagination state
+      const ITEMS_PER_PAGE = 20;
+      let currentPage = 1;
+      let totalPages = 1;
       
       // Load datasets and images on page load
       initialize();
@@ -147,8 +225,10 @@
       saveTagsBtn.addEventListener('click', saveTags);
       searchButton.addEventListener('click', performSearch);
       clearSearchBtn.addEventListener('click', clearSearch);
+      prevPageBtn.addEventListener('click', goToPrevPage);
+      nextPageBtn.addEventListener('click', goToNextPage);
       
-      // Add intersection observer for infinite scrolling
+      // Add intersection observer for lazy loading animations
       setupIntersectionObserver();
       
       // Handle clicks outside the modal
@@ -173,43 +253,34 @@
           
           // Then load all images
           await loadImages(currentDataset);
-          
-          // Update stats
-          updateStats();
         } catch (error) {
           console.error('Initialization error:', error);
           showToast('Failed to initialize the application');
         }
       }
       
-      // Setup intersection observer for lazy loading
+      // Setup intersection observer for lazy loading animations
       function setupIntersectionObserver() {
-        // This function would be used if we implement infinite scrolling
-        // or want to add custom behaviors when images enter viewport
         const options = {
           root: null, // Use viewport as root
-          rootMargin: '0px',
+          rootMargin: '50px',
           threshold: 0.1
         };
         
-        // This observer can be used for additional functionality
-        // beyond native lazy loading
+        // This observer adds animation classes when image cards enter viewport
         const observer = new IntersectionObserver((entries) => {
           entries.forEach(entry => {
             if (entry.isIntersecting) {
-              // Additional actions when an image container enters viewport
               const imageCard = entry.target;
+              setTimeout(() => {
+                imageCard.classList.add('visible');
+              }, 100 * Math.random()); // Staggered animation
               
-              // For example, add a fade-in effect
-              imageCard.classList.add('visible');
-              
-              // Stop observing after it's loaded
               observer.unobserve(imageCard);
             }
           });
         }, options);
         
-        // We'll use this when adding image cards to the DOM
         window.imageObserver = observer;
       }
       
@@ -272,11 +343,12 @@
         
         currentDataset = dataset;
         
-        // Reset search
+        // Reset search and pagination
         searchInput.value = '';
         searchTerm = '';
         activeFilters = [];
         renderActiveFilters();
+        currentPage = 1;
         
         // Load images for the selected dataset
         await loadImages(dataset);
@@ -295,17 +367,51 @@
           const response = await fetch(url);
           const images = await response.json();
           
-          displayImages(images);
-          hideLoading();
+          // Store all images for pagination
+          allImages = images;
+          totalImages = images.length;
           
-          // Update stats
-          totalImagesEl.textContent = images.length;
-          updateUniqueTagsCount(images);
+          // Calculate total pages
+          totalPages = Math.ceil(totalImages / ITEMS_PER_PAGE);
+          totalPagesEl.textContent = totalPages;
+          currentPageEl.textContent = currentPage;
+          
+          // Update pagination controls
+          updatePaginationControls();
+          
+          // Display only the current page of images
+          displayImagesForCurrentPage();
+          
+          // Update global stats (using all images, not just the current page)
+          updateGlobalStats(images);
+          
+          hideLoading();
         } catch (error) {
           console.error('Error loading images:', error);
           showToast('Failed to load images');
           hideLoading();
         }
+      }
+      
+      // Update the global stats based on all images
+      function updateGlobalStats(images) {
+        // Update total images stat
+        totalImagesEl.textContent = images.length;
+        
+        // Update unique tags count
+        updateUniqueTagsCount(images);
+      }
+      
+      // Display images for the current page
+      function displayImagesForCurrentPage() {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, allImages.length);
+        const currentPageImages = allImages.slice(startIndex, endIndex);
+        
+        displayImages(currentPageImages);
+        
+        // Show pagination controls if needed
+        paginationControls.style.display = totalPages > 1 ? 'flex' : 'none';
       }
       
       // Display images in the grid
@@ -326,7 +432,7 @@
           imageContainer.addEventListener('click', () => openModal(image));
           
           const img = document.createElement('img');
-          // Use data-src for a placeholder approach
+          // Use placeholder image initially
           img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100"><rect fill="%23f8f9fa" width="100" height="100"/><text fill="%23dee2e6" font-family="sans-serif" font-size="14" x="50%" y="50%" text-anchor="middle" dominant-baseline="middle">Loading...</text></svg>';
           img.dataset.src = `/api/images/${image.dataset}/${image.filename}`;
           img.alt = image.filename;
@@ -375,24 +481,62 @@
           card.appendChild(info);
           imagesContainer.appendChild(card);
           
-          // Observe the card for animations (optional enhancement)
+          // Observe the card for animations
           if (window.imageObserver) {
             window.imageObserver.observe(card);
           }
           
-          // Use Intersection Observer to load images as they approach viewport
+          // Use Intersection Observer for lazy loading the actual image
           const lazyImageObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
               if (entry.isIntersecting) {
                 const lazyImage = entry.target;
                 lazyImage.src = lazyImage.dataset.src;
-                lazyImageObserver.unobserve(lazyImage);
+                observer.unobserve(lazyImage);
               }
             });
           });
           
           lazyImageObserver.observe(img);
         });
+      }
+      
+      // Update pagination controls state
+      function updatePaginationControls() {
+        // Update page numbers
+        currentPageEl.textContent = currentPage;
+        totalPagesEl.textContent = totalPages;
+        
+        // Update button states
+        prevPageBtn.disabled = currentPage <= 1;
+        prevPageBtn.classList.toggle('disabled', currentPage <= 1);
+        
+        nextPageBtn.disabled = currentPage >= totalPages;
+        nextPageBtn.classList.toggle('disabled', currentPage >= totalPages);
+      }
+      
+      // Go to the previous page
+      function goToPrevPage() {
+        if (currentPage > 1) {
+          currentPage--;
+          displayImagesForCurrentPage();
+          updatePaginationControls();
+          
+          // Scroll to top of images container
+          imagesContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+      
+      // Go to the next page
+      function goToNextPage() {
+        if (currentPage < totalPages) {
+          currentPage++;
+          displayImagesForCurrentPage();
+          updatePaginationControls();
+          
+          // Scroll to top of images container
+          imagesContainer.scrollIntoView({ behavior: 'smooth' });
+        }
       }
       
       // Open the modal with image details
@@ -442,14 +586,20 @@
             // Update the current image's tags in memory
             currentImage.tags = tags;
             
-            // Refresh the view
-            if (searchTerm || activeFilters.length > 0) {
-              performSearch();
-            } else if (currentDataset !== 'all') {
-              await loadImages(currentDataset);
-            } else {
-              await loadImages();
+            // Find and update the image in allImages array
+            const imageIndex = allImages.findIndex(img => 
+              img.dataset === currentImage.dataset && img.filename === currentImage.filename
+            );
+            
+            if (imageIndex !== -1) {
+              allImages[imageIndex].tags = tags;
             }
+            
+            // Refresh the current page view
+            displayImagesForCurrentPage();
+            
+            // Update unique tags count across all images
+            updateUniqueTagsCount(allImages);
             
             closeModal();
           }
@@ -501,11 +651,24 @@
           const response = await fetch(url);
           const results = await response.json();
           
-          displayImages(results);
+          // Store search results for pagination
+          allImages = results;
+          totalImages = results.length;
           
-          // Update stats for search results
-          totalImagesEl.textContent = results.length;
-          updateUniqueTagsCount(results);
+          // Reset to first page
+          currentPage = 1;
+          
+          // Calculate total pages
+          totalPages = Math.ceil(totalImages / ITEMS_PER_PAGE);
+          
+          // Update pagination controls
+          updatePaginationControls();
+          
+          // Display only the current page of images
+          displayImagesForCurrentPage();
+          
+          // Update global stats (using all search results)
+          updateGlobalStats(results);
           
           hideLoading();
         } catch (error) {
@@ -572,6 +735,7 @@
         searchTerm = '';
         activeFilters = [];
         renderActiveFilters();
+        currentPage = 1;
         
         if (currentDataset !== 'all') {
           loadImages(currentDataset);
@@ -591,22 +755,6 @@
         });
         
         uniqueTagsEl.textContent = uniqueTags.size;
-      }
-      
-      // Update all stats
-      async function updateStats() {
-        // Datasets count is updated when loading datasets
-        
-        // Get total image count across all datasets
-        try {
-          const response = await fetch('/api/images');
-          const images = await response.json();
-          
-          totalImagesEl.textContent = images.length;
-          updateUniqueTagsCount(images);
-        } catch (error) {
-          console.error('Error updating stats:', error);
-        }
       }
       
       // Show loading state

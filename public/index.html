@@ -148,6 +148,9 @@
       searchButton.addEventListener('click', performSearch);
       clearSearchBtn.addEventListener('click', clearSearch);
       
+      // Add intersection observer for infinite scrolling
+      setupIntersectionObserver();
+      
       // Handle clicks outside the modal
       window.addEventListener('click', function(event) {
         if (event.target === modal) {
@@ -177,6 +180,37 @@
           console.error('Initialization error:', error);
           showToast('Failed to initialize the application');
         }
+      }
+      
+      // Setup intersection observer for lazy loading
+      function setupIntersectionObserver() {
+        // This function would be used if we implement infinite scrolling
+        // or want to add custom behaviors when images enter viewport
+        const options = {
+          root: null, // Use viewport as root
+          rootMargin: '0px',
+          threshold: 0.1
+        };
+        
+        // This observer can be used for additional functionality
+        // beyond native lazy loading
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              // Additional actions when an image container enters viewport
+              const imageCard = entry.target;
+              
+              // For example, add a fade-in effect
+              imageCard.classList.add('visible');
+              
+              // Stop observing after it's loaded
+              observer.unobserve(imageCard);
+            }
+          });
+        }, options);
+        
+        // We'll use this when adding image cards to the DOM
+        window.imageObserver = observer;
       }
       
       // Load all available datasets
@@ -292,9 +326,11 @@
           imageContainer.addEventListener('click', () => openModal(image));
           
           const img = document.createElement('img');
-          img.src = `/api/images/${image.dataset}/${image.filename}`;
+          // Use data-src for a placeholder approach
+          img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100"><rect fill="%23f8f9fa" width="100" height="100"/><text fill="%23dee2e6" font-family="sans-serif" font-size="14" x="50%" y="50%" text-anchor="middle" dominant-baseline="middle">Loading...</text></svg>';
+          img.dataset.src = `/api/images/${image.dataset}/${image.filename}`;
           img.alt = image.filename;
-          img.loading = 'lazy';
+          img.loading = 'lazy'; // Native lazy loading
           
           // Add error handling for images
           img.onerror = function() {
@@ -338,6 +374,24 @@
           card.appendChild(imageContainer);
           card.appendChild(info);
           imagesContainer.appendChild(card);
+          
+          // Observe the card for animations (optional enhancement)
+          if (window.imageObserver) {
+            window.imageObserver.observe(card);
+          }
+          
+          // Use Intersection Observer to load images as they approach viewport
+          const lazyImageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                const lazyImage = entry.target;
+                lazyImage.src = lazyImage.dataset.src;
+                lazyImageObserver.unobserve(lazyImage);
+              }
+            });
+          });
+          
+          lazyImageObserver.observe(img);
         });
       }
       

@@ -65,7 +65,9 @@ http://localhost:3000
 
 <img src="assets/CryoTomoSnap.png" alt="Main interface">
 
+
 You can limit the dataset by name, part of name or tag in the Search box.
+
 
 #5.2 Import a dataset
 

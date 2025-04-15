@@ -2,6 +2,29 @@
 
 A quick viewer to browse through tomography data with a tagging system to search for data.
 
+NOTE: Using a very simple data structure to browse through dataset, shown in structure.md. 
+Each dataset is a folder containing all the snapshot of each tomogram. 
+The tags for each dataset is stored in imageTags.json in this simple format
+
+```
+{
+  "CU428_006": [
+    "42kx",
+    "round"
+  ],
+  "CU428_006.png": [
+    "42kx",
+    "proximal"
+  ],
+  "CU428_028.png": [
+    "42kx",
+    "round"
+  ]
+}
+```
+
+To setup new dataset you can copy directly the folder into /micrographs. If there is no imageTags.json, then imageTags.json (empty) will be created.
+
 
 ---
 
@@ -71,7 +94,7 @@ You can limit the dataset by name, part of name or tag in the Search box.
 
 ### 5.2 Import a dataset
 
-A dataset is a folder containing the mid-section of your tomogram or a snapshot of tomogram with segmentation.
+A dataset is a folder containing the mid-section of your tomogram. For example, all the images of the mid-sections in the warp_tiltseries/reconstruction folder of WarpTools. Alternatively, you can use also segmented snapshot of the tomogram as well.
 
 The interface to import a dataset.
 

@@ -2,7 +2,6 @@
 
 A quick viewer to browse through tomography data with a tagging system to search for data.
 
-**NOTE:** Only basic features for now.
 
 ---
 
@@ -24,9 +23,9 @@ Install required dependencies:
 npm install express cors glob multer
 ```
 
-Copy dataset containing images to micrographs
+Copy dataset containing images to micrographs to initialize 
 ```
-cp /path/to/your/png/files micrographs/
+cp -r /path/to/your/dataset micrographs/
 ```
 
 ## 2. Run the Server
@@ -47,3 +46,14 @@ Open a web browser and navigate to:
 ```
 http://localhost:3000
 ```
+
+## 4. Access the Application Remotely
+
+SSH Port forwarding
+```
+ssh -i -N -f -L localhost:3000:localhost:3000 username@host
+```
+
+Open a web browser and navigate to:
+```
+http://localhost:3000

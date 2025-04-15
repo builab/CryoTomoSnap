@@ -61,7 +61,7 @@ http://localhost:3000
 
 ## 5. Usage
 
-#5.1 Main Interface:
+###5.1 Main Interface:
 
 <img src="assets/CryoTomoSnap.png" alt="Main interface">
 

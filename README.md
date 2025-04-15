@@ -61,7 +61,7 @@ http://localhost:3000
 
 ## 5. Usage
 
-###5.1 Main Interface:
+### 5.1 Main Interface:
 
 <img src="assets/CryoTomoSnap.png" alt="Main interface">
 
@@ -69,7 +69,7 @@ http://localhost:3000
 You can limit the dataset by name, part of name or tag in the Search box.
 
 
-#5.2 Import a dataset
+### 5.2 Import a dataset
 
 A dataset is a folder containing the mid-section of your tomogram or a snapshot of tomogram with segmentation.
 
@@ -79,7 +79,7 @@ The interface to import a dataset.
 
 Press "Preview" first and then Import
 
-#5.3 Import Tags
+### 5.3 Import Tags
 
 You can prepare a csv file in this format
 ```
@@ -92,7 +92,8 @@ Press "Preview" and then "Import". Duplicate tags will not be imported. The name
 
 <img src="assets/ImportTags.png" alt="Import Dataset">
 
-#5.4 Bulk-Tag Dataset
+
+### 5.4 Bulk-Tag Dataset
 
 Use this option to tag one or multiple dataset (with wildcard) with the same tag.
 
